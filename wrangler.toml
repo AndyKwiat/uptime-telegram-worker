@@ -1,0 +1,32 @@
+name = "uptime-telegram-worker"
+main = "src/index.ts"
+compatibility_date = "2025-11-11"
+
+
+
+# Create this KV namespace via CLI and paste its id here.
+# See README.md for the exact commands.
+kv_namespaces = [
+  { binding = "UPTIME_KV", id = "3df51f295c6841108062b77b0bd0b567" }
+]
+
+[vars]
+# Your health endpoint:
+HEALTHCHECK_URL = "https://api.pumpshift.com/health"
+
+# Expected HTTP status (usually 200). Must be a number in string form.
+EXPECT_STATUS = "200"
+
+# Request timeout in milliseconds.
+TIMEOUT_MS = "8000"
+
+# Friendly name shown in Telegram alerts.
+CHECK_NAME = "Pumpshift Healthcheck"
+
+# Optional: send a "Recovered" message when your app comes back up.
+# Set to "true" to enable.
+RECOVERY_NOTIFY = "false"
+
+# Runs every 5 minutes
+[triggers]
+crons = ["*/5 * * * *"]
