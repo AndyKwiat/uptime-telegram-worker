@@ -25,7 +25,11 @@ CHECK_NAME = "Pumpshift Healthcheck"
 
 # Optional: send a "Recovered" message when your app comes back up.
 # Set to "true" to enable.
-RECOVERY_NOTIFY = "false"
+RECOVERY_NOTIFY = "true"
+
+# Number of consecutive failures before we consider the service "down"
+# and fire a DOWN alert.  Default: 3
+FAIL_THRESHOLD = "3"
 
 # Runs every 5 minutes
 [triggers]

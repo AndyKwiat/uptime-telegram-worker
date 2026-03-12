@@ -14,6 +14,7 @@ interface Env {
   TIMEOUT_MS: string;
   CHECK_NAME: string;
   RECOVERY_NOTIFY?: string;
+  FAIL_THRESHOLD?: string;
 
   // Secrets (set via: npx wrangler secret put ...)
   TELEGRAM_BOT_TOKEN: string;
@@ -132,6 +133,7 @@ export async function runCheck(env: Env): Promise<{
 }> {
   const expectedStatus = Number(env.EXPECT_STATUS || "200");
   const timeoutMs = Number(env.TIMEOUT_MS || "8000");
+  const failThreshold = Math.max(1, Number(env.FAIL_THRESHOLD || "3"));
 
   const state = await loadState(env);
 
@@ -159,12 +161,12 @@ export async function runCheck(env: Env): Promise<{
       await sendTelegram(env, msg);
     }
   } else {
-    state.lastUp = false;
     state.lastDownAt = checkedAt;
     state.consecutiveFailures = (state.consecutiveFailures ?? 0) + 1;
 
-    // Only alert on the transition: up/unknown -> down
-    if (wasUp !== false) {
+    if (state.consecutiveFailures >= failThreshold && wasUp !== false) {
+      state.lastUp = false;
+
       const reason =
         result.error ? `Error: ${result.error}` :
         typeof result.status === "number" ? `Status: ${result.status} (expected ${expectedStatus})` :
@@ -174,6 +176,7 @@ export async function runCheck(env: Env): Promise<{
         `🚨 DOWN: ${env.CHECK_NAME}\n` +
         `URL: ${env.HEALTHCHECK_URL}\n` +
         `${reason}\n` +
+        `Failures: ${state.consecutiveFailures} consecutive\n` +
         `Latency: ${fmtMs(result.latencyMs)}\n` +
         `Time: ${nowIso()}`;
 
