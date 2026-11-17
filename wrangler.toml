@@ -2,34 +2,58 @@ name = "uptime-telegram-worker"
 main = "src/index.ts"
 compatibility_date = "2025-11-11"
 
-
-
-# Create this KV namespace via CLI and paste its id here.
-# See README.md for the exact commands.
+# Holds check state (state:v2) and the last ping of each heartbeat (hb:<name>).
 kv_namespaces = [
   { binding = "UPTIME_KV", id = "3df51f295c6841108062b77b0bd0b567" }
 ]
 
 [vars]
-# Your health endpoint:
-HEALTHCHECK_URL = "https://api.pumpshift.com/health"
+# URL checks, run by the cron. Fields: name, url, expect (status or list, default 200),
+# redirect ("follow" default, or "manual" to judge the 3xx itself), timeoutMs.
+#
+# Apps behind the radify Google gate answer /healthz with a 307 to the login page, so for those
+# a 307 only proves the server, Caddy and the gate are up, not the app itself.
+CHECKS = '''
+[
+  { "name": "pumpshift",           "url": "https://api.pumpshift.com/health" },
 
-# Expected HTTP status (usually 200). Must be a number in string form.
-EXPECT_STATUS = "200"
+  { "name": "step1 gate",          "url": "https://auth.akwiat.com/healthz" },
+  { "name": "step1 admin",         "url": "https://admin.akwiat.com/healthz",        "redirect": "manual", "expect": [200, 307] },
+  { "name": "api-citycouncil",     "url": "https://api-citycouncil.akwiat.com/healthz" },
+  { "name": "captainslog",         "url": "https://captainslog.akwiat.com/healthz" },
+  { "name": "motivate",            "url": "https://motivate.akwiat.com/healthz",     "redirect": "manual", "expect": [200, 307] },
+  { "name": "football",            "url": "https://football.akwiat.com/healthz",     "redirect": "manual", "expect": [200, 307] },
+  { "name": "fooder",              "url": "https://fooder.akwiat.com/" },
+  { "name": "kart",                "url": "https://kart.akwiat.com/" },
+  { "name": "waldo-polygon",       "url": "https://waldo-polygon.akwiat.com/" },
+  { "name": "waldo-voxel",         "url": "https://waldo-voxel.akwiat.com/" },
 
-# Request timeout in milliseconds.
+  { "name": "step2 gate",          "url": "https://auth-step2.akwiat.com/healthz" },
+  { "name": "step2 admin",         "url": "https://admin-step2.akwiat.com/healthz",  "redirect": "manual", "expect": [200, 307] },
+  { "name": "workerbee",           "url": "https://workerbee.akwiat.com/healthz",    "redirect": "manual", "expect": [200, 307] }
+]
+'''
+
+# Dead man's switches: POST /hb/<name> (header x-key: HEARTBEAT_KEY) on success, /hb/<name>/fail on failure.
+# Alert when the last success is older than maxAgeMinutes. radify-backup runs every 6h.
+HEARTBEATS = '''
+[
+  { "name": "backup-step1", "maxAgeMinutes": 420 },
+  { "name": "backup-step2", "maxAgeMinutes": 420 }
+]
+'''
+
+# Default request timeout in milliseconds.
 TIMEOUT_MS = "8000"
 
-# Friendly name shown in Telegram alerts.
-CHECK_NAME = "Pumpshift Healthcheck"
-
-# Optional: send a "Recovered" message when your app comes back up.
-# Set to "true" to enable.
+# Send a "Recovered" message when a URL check comes back up.
 RECOVERY_NOTIFY = "true"
 
-# Number of consecutive failures before we consider the service "down"
-# and fire a DOWN alert.  Default: 3
+# Consecutive failures (5 min apart) before a URL check counts as down and alerts.
 FAIL_THRESHOLD = "3"
+
+# While a heartbeat stays overdue, repeat the alert this often.
+REMIND_HOURS = "24"
 
 # Runs every 5 minutes
 [triggers]
